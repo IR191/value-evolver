@@ -1,7 +1,9 @@
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
-import { Download } from "lucide-react";
+import { Download, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { exportToExcel, applyModelFeedback } from "../utils/excelUtils";
+import { toast } from "./ui/use-toast";
 
 interface BudgetComparisonProps {
   originalBudget: any[][];
@@ -32,15 +34,59 @@ export const BudgetComparison = ({
     return sum + (newValue - originalValue);
   }, 0);
 
+  const handleDownload = () => {
+    try {
+      exportToExcel(originalBudget, changes);
+      toast({
+        title: "Success",
+        description: "Budget changes have been exported to Excel",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to export changes",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleFeedback = (type: 'positive' | 'negative') => {
+    applyModelFeedback(changes, type);
+    toast({
+      title: "Feedback Recorded",
+      description: `Thank you for your ${type} feedback. This will help improve future predictions.`,
+    });
+  };
+
   return (
     <Card className="p-6 backdrop-blur-sm bg-white/80 border border-gray-200 animate-fade-in">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-red-600">Budget Analysis</h2>
-          <Button variant="outline" className="flex items-center gap-2 border-red-200 hover:bg-red-50">
-            <Download className="w-4 h-4" />
-            Export Changes
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2 border-red-200 hover:bg-red-50"
+              onClick={handleDownload}
+            >
+              <Download className="w-4 h-4" />
+              Export Changes
+            </Button>
+            <Button
+              variant="outline"
+              className="border-red-200 hover:bg-red-50"
+              onClick={() => handleFeedback('positive')}
+            >
+              <ThumbsUp className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              className="border-red-200 hover:bg-red-50"
+              onClick={() => handleFeedback('negative')}
+            >
+              <ThumbsDown className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-4">
@@ -104,6 +150,7 @@ export const BudgetComparison = ({
           <div className="text-sm text-gray-600 mb-4">
             The machine learning model is currently in training. As you process more
             budgets, it will learn to recognize patterns in your adjustments.
+            Please provide feedback using the thumbs up/down buttons to help improve the model.
           </div>
         </div>
       </div>
