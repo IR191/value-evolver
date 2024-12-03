@@ -22,6 +22,7 @@ export const BudgetComparison = ({
           column: colIndex + 1,
           original: originalBudget[rowIndex]?.[colIndex],
           new: cell,
+          direction: rowIndex >= originalBudget.length ? 'horizontal' : 'vertical'
         });
       }
     });
