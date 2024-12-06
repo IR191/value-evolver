@@ -5,7 +5,7 @@ export const exportToExcel = (originalBudget: any[][], changes: any[]) => {
   const wb = XLSX.utils.book_new();
   
   // Create a deep copy of the original data and preserve formatting
-  const exportData = originalData.map(row => [...row]);
+  const exportData = originalBudget.map(row => [...row]);
   
   // Separate changes by direction
   const verticalChanges = changes.filter(change => change.direction === 'vertical');
