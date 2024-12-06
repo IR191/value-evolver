@@ -22,7 +22,6 @@ export const exportToExcel = (originalBudget: any[][], changes: any[]) => {
       if (!exportData[rowIndex]) {
         exportData[rowIndex] = Array(exportData[0].length).fill('');
       }
-      // Place new value in the last column
       exportData[rowIndex][exportData[0].length - 1] = change.new;
     });
   }
@@ -39,22 +38,20 @@ export const exportToExcel = (originalBudget: any[][], changes: any[]) => {
       const rowIndex = exportData.length;
       const colIndex = change.column - 1;
       
-      // Create new row if needed
       if (!exportData[rowIndex]) {
         exportData[rowIndex] = Array(exportData[0].length).fill('');
       }
       
-      // Place new value in the correct column underneath
       exportData[rowIndex][colIndex] = change.new;
     });
   }
   
-  // Convert data to worksheet with style preservation
+  // Convert data to worksheet
   const ws = XLSX.utils.aoa_to_sheet(exportData);
   
   // Define styles
   const borderStyle = { style: 'thin', color: { rgb: "000000" } };
-  const yellowFill = { fgColor: { rgb: "FFFF00" } };
+  const yellowFill = { patternType: 'solid', fgColor: { rgb: "FFFF00" } };
   
   // Apply formatting to all cells
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
@@ -68,11 +65,16 @@ export const exportToExcel = (originalBudget: any[][], changes: any[]) => {
       );
       
       const isHorizontalChange = horizontalChanges.some(change =>
-        row === exportData.length - 1 && change.column - 1 === col
+        row >= exportData.length - horizontalChanges.length && 
+        change.column - 1 === col
       );
       
+      // Get existing cell or create new one
+      if (!ws[cellRef]) {
+        ws[cellRef] = { v: '', t: 's' };
+      }
+      
       // Apply styles
-      ws[cellRef] = ws[cellRef] || { v: '', t: 's' };
       ws[cellRef].s = {
         border: {
           top: borderStyle,
@@ -80,8 +82,8 @@ export const exportToExcel = (originalBudget: any[][], changes: any[]) => {
           left: borderStyle,
           right: borderStyle
         },
-        // Apply yellow fill only to changed cells
-        ...(isVerticalChange || isHorizontalChange ? { fill: yellowFill } : {})
+        fill: (isVerticalChange || isHorizontalChange) ? yellowFill : undefined,
+        alignment: { vertical: 'center', horizontal: 'center' }
       };
     }
   }
@@ -101,14 +103,17 @@ export const exportToExcel = (originalBudget: any[][], changes: any[]) => {
   for (let row = changesRange.s.r; row <= changesRange.e.r; row++) {
     for (let col = changesRange.s.c; col <= changesRange.e.c; col++) {
       const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
-      changesSheet[cellRef] = changesSheet[cellRef] || { v: '', t: 's' };
+      if (!changesSheet[cellRef]) {
+        changesSheet[cellRef] = { v: '', t: 's' };
+      }
       changesSheet[cellRef].s = {
         border: {
           top: borderStyle,
           bottom: borderStyle,
           left: borderStyle,
           right: borderStyle
-        }
+        },
+        alignment: { vertical: 'center', horizontal: 'center' }
       };
     }
   }
@@ -116,6 +121,11 @@ export const exportToExcel = (originalBudget: any[][], changes: any[]) => {
   // Add sheets to workbook and save
   XLSX.utils.book_append_sheet(wb, ws, "Budget Comparison");
   XLSX.utils.book_append_sheet(wb, changesSheet, "Change Log");
+  
+  // Set column widths
+  ws['!cols'] = Array(range.e.c + 1).fill({ wch: 15 });
+  changesSheet['!cols'] = Array(6).fill({ wch: 15 });
+  
   XLSX.writeFile(wb, "budget_changes.xlsx");
 };
 
