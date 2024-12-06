@@ -51,7 +51,7 @@ export const exportToExcel = (originalBudget: any[][], changes: any[]) => {
   
   // Define styles
   const borderStyle = { style: 'thin', color: { rgb: "000000" } };
-  const yellowFill = { patternType: 'solid', fgColor: { rgb: "FFFF00" } };
+  const yellowFill = { type: 'pattern', pattern: 'solid', fgColor: { rgb: "FFFF00" } };
   
   // Apply formatting to all cells
   const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
@@ -75,16 +75,23 @@ export const exportToExcel = (originalBudget: any[][], changes: any[]) => {
       }
       
       // Apply styles
-      ws[cellRef].s = {
-        border: {
-          top: borderStyle,
-          bottom: borderStyle,
-          left: borderStyle,
-          right: borderStyle
-        },
-        fill: (isVerticalChange || isHorizontalChange) ? yellowFill : undefined,
-        alignment: { vertical: 'center', horizontal: 'center' }
+      if (!ws[cellRef].s) ws[cellRef].s = {};
+      
+      // Always apply borders
+      ws[cellRef].s.border = {
+        top: borderStyle,
+        bottom: borderStyle,
+        left: borderStyle,
+        right: borderStyle
       };
+      
+      // Apply yellow fill to changed cells
+      if (isVerticalChange || isHorizontalChange) {
+        ws[cellRef].s.fill = yellowFill;
+      }
+      
+      // Apply alignment
+      ws[cellRef].s.alignment = { vertical: 'center', horizontal: 'center' };
     }
   }
   
@@ -106,19 +113,19 @@ export const exportToExcel = (originalBudget: any[][], changes: any[]) => {
       if (!changesSheet[cellRef]) {
         changesSheet[cellRef] = { v: '', t: 's' };
       }
-      changesSheet[cellRef].s = {
-        border: {
-          top: borderStyle,
-          bottom: borderStyle,
-          left: borderStyle,
-          right: borderStyle
-        },
-        alignment: { vertical: 'center', horizontal: 'center' }
+      if (!changesSheet[cellRef].s) changesSheet[cellRef].s = {};
+      
+      changesSheet[cellRef].s.border = {
+        top: borderStyle,
+        bottom: borderStyle,
+        left: borderStyle,
+        right: borderStyle
       };
+      changesSheet[cellRef].s.alignment = { vertical: 'center', horizontal: 'center' };
     }
   }
   
-  // Add sheets to workbook and save
+  // Add sheets to workbook
   XLSX.utils.book_append_sheet(wb, ws, "Budget Comparison");
   XLSX.utils.book_append_sheet(wb, changesSheet, "Change Log");
   
@@ -126,6 +133,7 @@ export const exportToExcel = (originalBudget: any[][], changes: any[]) => {
   ws['!cols'] = Array(range.e.c + 1).fill({ wch: 15 });
   changesSheet['!cols'] = Array(6).fill({ wch: 15 });
   
+  // Write the file
   XLSX.writeFile(wb, "budget_changes.xlsx");
 };
 
