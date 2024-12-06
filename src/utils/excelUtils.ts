@@ -4,49 +4,47 @@ export const exportToExcel = (originalData: any[][], changes: any[]) => {
   // Create a new workbook
   const wb = XLSX.utils.book_new();
   
-  // Create a deep copy of the original data and preserve formatting
+  // Create a deep copy of the original data
   const exportData = originalData.map(row => [...row]);
   
   // Separate changes by direction
   const verticalChanges = changes.filter(change => change.direction === 'vertical');
   const horizontalChanges = changes.filter(change => change.direction === 'horizontal');
   
-  // Add vertical changes (to the right of the original values)
+  // Add header for revised values column if there are vertical changes
   if (verticalChanges.length > 0) {
-    // Add header for revised values column
     exportData[0].push('Revised Values');
-    
-    // Add vertical changes
-    verticalChanges.forEach(change => {
-      const rowIndex = change.row - 1;
-      if (!exportData[rowIndex]) {
-        exportData[rowIndex] = Array(exportData[0].length).fill('');
-      }
-      // Place new value in the last column
-      exportData[rowIndex][exportData[0].length - 1] = change.new;
-    });
   }
   
-  // Add horizontal changes (underneath the original values)
+  // Process vertical changes (add to the right)
+  verticalChanges.forEach(change => {
+    const rowIndex = change.row - 1;
+    if (!exportData[rowIndex]) {
+      exportData[rowIndex] = Array(exportData[0].length).fill('');
+    }
+    exportData[rowIndex][exportData[0].length - 1] = change.new;
+  });
+  
+  // Process horizontal changes (add underneath)
   if (horizontalChanges.length > 0) {
+    // Add a blank row as separator
+    exportData.push(Array(exportData[0].length).fill(''));
+    
+    // Add header row for horizontal changes
+    exportData.push(['Revised Values (Horizontal Changes)', ...Array(exportData[0].length - 1).fill('')]);
+    
+    // Add the horizontal changes
     horizontalChanges.forEach(change => {
-      const rowIndex = exportData.length;
-      const colIndex = change.column - 1;
-      
-      // Create new row if needed
-      if (!exportData[rowIndex]) {
-        exportData[rowIndex] = Array(exportData[0].length).fill('');
-      }
-      
-      // Place new value in the correct column underneath
-      exportData[rowIndex][colIndex] = change.new;
+      const newRow = Array(exportData[0].length).fill('');
+      newRow[change.column - 1] = change.new;
+      exportData.push(newRow);
     });
   }
   
   // Convert data to worksheet
   const ws = XLSX.utils.aoa_to_sheet(exportData);
   
-  // Define styles
+  // Define cell styles
   const borderStyle = { style: 'thin', color: { rgb: "000000" } };
   const yellowFill = { fgColor: { rgb: "FFFF00" } };
   
@@ -62,7 +60,8 @@ export const exportToExcel = (originalData: any[][], changes: any[]) => {
       );
       
       const isHorizontalChange = horizontalChanges.some(change =>
-        row === exportData.length - 1 && change.column - 1 === col
+        row >= exportData.length - horizontalChanges.length && 
+        change.column - 1 === col
       );
       
       // Apply styles
@@ -74,7 +73,7 @@ export const exportToExcel = (originalData: any[][], changes: any[]) => {
           left: borderStyle,
           right: borderStyle
         },
-        // Apply yellow fill only to changed cells
+        // Apply yellow fill to changed cells
         ...(isVerticalChange || isHorizontalChange ? { fill: yellowFill } : {})
       };
     }
@@ -90,26 +89,11 @@ export const exportToExcel = (originalData: any[][], changes: any[]) => {
     'Impact': (parseFloat(change.new) || 0) - (parseFloat(change.original) || 0)
   })));
   
-  // Apply borders to changes log sheet
-  const changesRange = XLSX.utils.decode_range(changesSheet['!ref'] || 'A1');
-  for (let row = changesRange.s.r; row <= changesRange.e.r; row++) {
-    for (let col = changesRange.s.c; col <= changesRange.e.c; col++) {
-      const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
-      changesSheet[cellRef] = changesSheet[cellRef] || { v: '', t: 's' };
-      changesSheet[cellRef].s = {
-        border: {
-          top: borderStyle,
-          bottom: borderStyle,
-          left: borderStyle,
-          right: borderStyle
-        }
-      };
-    }
-  }
-  
-  // Add sheets to workbook and save
+  // Add sheets to workbook
   XLSX.utils.book_append_sheet(wb, ws, "Budget Comparison");
   XLSX.utils.book_append_sheet(wb, changesSheet, "Change Log");
+  
+  // Write the file
   XLSX.writeFile(wb, "budget_changes.xlsx");
 };
 
